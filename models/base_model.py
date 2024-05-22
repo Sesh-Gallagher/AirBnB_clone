@@ -1,60 +1,75 @@
 #!/usr/bin/python3
-"""Module for the base model script"""
+"""Module for the baseModel script"""
 
-import uuid
+
+import models
 from datetime import datetime
-from models import storage
+import uuid
 
 
 class BaseModel:
-    """Represents class from which all other classes will inherit"""
+    """Base model class, this is the super class
+    where every other class would inherit from"""
 
-
-def __init__(self, *args, **kwargs):
-    """initializes attributes of an instance
-
-    Args:
-     - *args: the list of arguments
-     - **kwargs: dict of key-values and args."""
-
-    if kwargs is not None and kwargs != {}:
-        for key in kwargs:
-            if key == "created_at":
-                self.__dict__["created_at"] = datetime.strptime(
-                         kwargs["created_at"], "%Y-%m-%dT%H:%M:%S.%f")
-            elif key == "updated_at":
-                self.__dict__["updated_at"] = datetime.strptime(
-                        kwargs["updated_at"], "%Y-%m-%dT%H:%M:%S.%f")
-            else:
-                self.__dict__[key] = kwargs[key]
-    else:
+    def __init__(self, *args, **kwargs):
+        time_format = "%Y-%m-%dT%H:%M:%S.%f"
         self.id = str(uuid.uuid4())
-        self.created_at = datetime.now()
-        self.updated_at = datetime.now()
-        storage.new(self)
+        self.created_at = datetime.utcnow()
+        self.updated_at = datetime.utcnow()
+
+        if kwargs:
+            for key, value in kwargs.items():
+                if key == "__class__":
+                    continue
+                elif key == "created_at" or key == "updated_at":
+                    setattr(self, key, datetime.strptime(value, time_format))
+                else:
+                    setattr(self, key, value)
+
+        models.storage.new(self)
+
+    def save(self):
+        """Module that helps create and save instance"""
+
+        self.updated_at = datetime.utcnow()
+        models.storage.save()
+
+    def to_dict(self):
+        """Represents class that converts object to dicitionry"""
+
+        inst_dict = self.__dict__.copy()
+        inst_dict["__class__"] = self.__class__.__name__
+        inst_dict["created_at"] = self.created_at.isoformat()
+        inst_dict["updated_at"] = self.updated_at.isoformat()
+
+        return inst_dict
+
+    def __str__(self):
+        """Module that represents the string represention of an instance"""
+
+        class_name = self.__class__.__name__
+        return "[{}] ({}) {}".format(class_name, self.id, self.__dict__)
 
 
-def __str__(self):
-    """Module returns official string representation"""
+if __name__ == "__main__":
+    my_model = BaseModel()
+    my_model.name = "My_First_Model"
+    my_model.my_number = 89
+    print(my_model.id)
+    print(my_model)
+    print(type(my_model.created_at))
+    print("--")
+    my_model_json = my_model.to_dict()
+    print(my_model_json)
+    print("JSON of my_model:")
+    for key in my_model_json.keys():
+        print("\t{}: ({}) - {}".format(
+            key, type(my_model_json[key]), my_model_json[key]))
 
-    return "[{}] ({}) {}".\
-        format(type(self).__name__, self.id, self.__dict__)
-
-
-def save(self):
-    """Module updates the public instance attribute updated_at"""
-
-    self.updated_at = datetime.now()
-    storage.save()
-
-
-def to_dict(self):
-    """Module returns a dictionary containing all keys/values of __dict__"""
-
-    my_dict = self.__dict__.copy()
-    my_dict["__class__"] = type(self).__name__
-    my_dict["created_at"] =
-    my_dict["created_at"].isoformat()
-    my_dict["updated_at"] =
-    my_dict["updated_at"].isoformat()
-    return my_dict
+    print("--")
+    my_new_model = BaseModel(**my_model_json)
+    print(my_new_model.id)
+    print(my_new_model)
+    print(type(my_new_model.created_at))
+    print("--")
+    print(my_model is my_new_model)
